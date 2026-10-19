@@ -2,8 +2,8 @@ name: Seats.aero Flight Monitor
 
 on:
   schedule:
-    # Runs every 30 minutes (uses 96 of your 1,000 daily API calls)
-    - cron: '0 */2 * * *'
+    # Runs every 2 hours at minute 23 (e.g. 01:23, 03:23, 05:23 UTC)
+    - cron: '23 */2 * * *'
   workflow_dispatch: # Allows manual trigger anytime from the Actions tab
 
 jobs:
