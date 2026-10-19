@@ -1,0 +1,33 @@
+name: Seats.aero Flight Monitor
+
+on:
+  schedule:
+    # Runs every 30 minutes (uses 96 of your 1,000 daily API calls)
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Allows manual trigger anytime from the Actions tab
+
+jobs:
+  check-flights:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run flight monitor
+        env:
+          SEATS_AERO_API_KEY: ${{ secrets.SEATS_AERO_API_KEY }}
+          # Email notification secrets (Optional: for Gmail alerts)
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
+          # Mobile push secret (Optional: for Discord push alerts)
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python seats_aero_monitor.py
