@@ -202,6 +202,43 @@ def write_github_summary(matches: list) -> None:
 
 
 # ----------------- API Query Engine -----------------
+def parse_departure(trip: dict):
+    """Return a flight's departure as a datetime, or None if it's missing or unreadable."""
+    dep_str = trip.get("DepartsAt")
+    if not dep_str:
+        return None
+    try:
+        return datetime.fromisoformat(dep_str.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return None
+
+
+def flight_qualifies(trip: dict, earliest_hour) -> bool:
+    """Check one flight against the cabin, seat, price and departure time criteria."""
+    cabin = trip.get("Cabin")
+    if cabin and cabin != CABIN:
+        return False
+
+    seats = int(trip.get("RemainingSeats", 0) or 0)
+    if seats < MIN_SEATS:
+        return False
+
+    miles_raw = trip.get("MileageCost")
+    miles = int(miles_raw) if str(miles_raw).isdigit() else 0
+    if miles == 0:
+        logging.warning(f"Price unavailable for flight {trip.get('FlightNumbers', 'N/A')} on {trip.get('Source', 'N/A')}")
+        return False
+    if miles > MAX_POINTS_CEILING:
+        return False
+
+    # An unknown departure time still alerts, since it could be a real seat
+    dep_dt = parse_departure(trip)
+    if earliest_hour is not None and dep_dt and dep_dt.hour < earliest_hour:
+        return False
+
+    return True
+
+
 def query_route(query_cfg: dict, headers: dict) -> list:
     """Query Seats.aero API for a single route configuration with time-of-day filtering."""
     params = {
@@ -232,62 +269,40 @@ def query_route(query_cfg: dict, headers: dict) -> list:
         earliest_hour = query_cfg.get("earliest_departure_hour")
 
         for item in data:
-            w_avail = item.get("WAvailable", False)
-            w_seats = int(item.get("WRemainingSeats", 0) or 0)
-            w_miles_raw = item.get("WMileageCost", "0")
-            w_miles = int(w_miles_raw) if str(w_miles_raw).isdigit() else 0
-            w_taxes_cents = item.get("WTotalTaxes", 0) or 0
-            w_taxes_usd = float(w_taxes_cents) / 100.0
+            if not item.get("WAvailable", False):
+                continue
 
-            # Filter criteria: 2+ seats available and points <= 60,000
-            if w_avail and w_seats >= MIN_SEATS:
-                if w_miles == 0:
-                    logging.warning(f"Price unavailable for {query_cfg['name']} on {item.get('Source', 'N/A')}")
-                    continue
-                if MAX_POINTS_CEILING and w_miles > MAX_POINTS_CEILING:
-                    continue
+            trips = item.get("AvailabilityTrips") or item.get("Trips")
+            if not trips:
+                # Fallback if trip-level data is unavailable from source: treat the item as one flight
+                is_direct = item.get("WDirect", query_cfg["only_direct"] == "true")
+                trips = [{
+                    "RemainingSeats": item.get("WRemainingSeats"),
+                    "MileageCost": item.get("WMileageCost"),
+                    "TotalTaxes": item.get("WTotalTaxes"),
+                    "Carriers": item.get("WAirlines"),
+                    "Stops": 0 if is_direct else 1,
+                    "Source": item.get("Source"),
+                }]
 
-                # Inspect trip-level departure time if time-of-day restriction is set
-                trips = item.get("AvailabilityTrips") or item.get("Trips") or []
-                flight_dep_time = None
-                time_filter_passed = True
-
-                if earliest_hour is not None:
-                    # If trips exist, evaluate specific departure time
-                    if trips:
-                        time_filter_passed = False
-                        for t in trips:
-                            if t.get("Cabin") == "premium" or not t.get("Cabin"):
-                                dep_str = t.get("DepartsAt")
-                                if dep_str:
-                                    try:
-                                        dep_dt = datetime.fromisoformat(dep_str.replace("Z", "+00:00"))
-                                        if dep_dt.hour >= earliest_hour:
-                                            time_filter_passed = True
-                                            flight_dep_time = dep_dt.strftime("%I:%M %p")
-                                            break
-                                    except Exception:
-                                        time_filter_passed = True
-                    else:
-                        # Fallback if trip-level data is unavailable from source
-                        time_filter_passed = True
-
-                if not time_filter_passed:
-                    logging.info(f"Flight from {query_cfg['origin']} departs before {earliest_hour}:00. Skipping.")
+            # Each flight must pass on its own, and the alert uses only that flight's values
+            for trip in trips:
+                if not flight_qualifies(trip, earliest_hour):
                     continue
 
+                dep_dt = parse_departure(trip)
                 flight_entry = {
                     "origin": query_cfg["origin"],
                     "route": f"{item.get('Route', {}).get('OriginAirport', query_cfg['origin'])} → {query_cfg['destination']}",
                     "date": item.get("Date", TARGET_DATE),
-                    "departure_time": flight_dep_time,
+                    "departure_time": dep_dt.strftime("%I:%M %p") if dep_dt else None,
                     "is_afternoon": earliest_hour is not None,
-                    "seats": w_seats,
-                    "points": w_miles,
-                    "taxes": w_taxes_usd,
+                    "seats": int(trip["RemainingSeats"]),
+                    "points": int(trip["MileageCost"]),
+                    "taxes": float(trip.get("TotalTaxes", 0) or 0) / 100.0,
                     "program": item.get("Source", "N/A"),
-                    "airlines": item.get("WAirlines", "N/A"),
-                    "direct": item.get("WDirect", query_cfg["only_direct"] == "true"),
+                    "airlines": trip.get("Carriers") or "N/A",
+                    "direct": trip.get("Stops") == 0,
                 }
                 matching_flights.append(flight_entry)
 
