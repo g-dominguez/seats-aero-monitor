@@ -27,7 +27,5 @@ jobs:
           # Email notification secrets (Optional: for Gmail alerts)
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
-          # Mobile push secret (Optional: for Discord push alerts)
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}}
         run: python seats_aero_monitor.py
