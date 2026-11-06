@@ -1,0 +1,88 @@
+{
+  "data": [
+    {
+      "Route": {
+        "OriginAirport": "LHR",
+        "DestinationAirport": "LAX",
+        "Source": "virginatlantic"
+      },
+      "Date": "2027-07-17",
+      "WAvailable": true,
+      "WMileageCost": "55000",
+      "WRemainingSeats": 9,
+      "WTotalTaxes": 49363,
+      "WAirlines": "VS",
+      "WDirect": true,
+      "TaxesCurrency": "GBP",
+      "Source": "virginatlantic",
+      "UpdatedAt": "2026-11-06T18:24:13.784173Z",
+      "AvailabilityTrips": [
+        {
+          "FlightNumbers": "VS7",
+          "Cabin": "premium",
+          "RemainingSeats": 8,
+          "MileageCost": 55000,
+          "TotalTaxes": 49363,
+          "TaxesCurrency": "GBP",
+          "Carriers": "VS",
+          "Stops": 0,
+          "OriginAirport": "LHR",
+          "DestinationAirport": "LAX",
+          "DepartsAt": "2027-07-17T09:55:00Z",
+          "ArrivesAt": "2027-07-17T13:10:00Z",
+          "Source": "virginatlantic"
+        },
+        {
+          "FlightNumbers": "VS23",
+          "Cabin": "premium",
+          "RemainingSeats": 9,
+          "MileageCost": 58000,
+          "TotalTaxes": 49363,
+          "TaxesCurrency": "GBP",
+          "Carriers": "VS",
+          "Stops": 0,
+          "OriginAirport": "LHR",
+          "DestinationAirport": "LAX",
+          "DepartsAt": "2027-07-17T16:20:00Z",
+          "ArrivesAt": "2027-07-17T19:30:00Z",
+          "Source": "virginatlantic"
+        }
+      ]
+    },
+    {
+      "Route": {
+        "OriginAirport": "LHR",
+        "DestinationAirport": "LAX",
+        "Source": "american"
+      },
+      "Date": "2027-07-17",
+      "WAvailable": true,
+      "WMileageCost": "88000",
+      "WRemainingSeats": 0,
+      "WTotalTaxes": 43539,
+      "WAirlines": "AA",
+      "WDirect": true,
+      "TaxesCurrency": "USD",
+      "Source": "american",
+      "UpdatedAt": "2026-11-06T17:39:23.364227Z",
+      "AvailabilityTrips": [
+        {
+          "FlightNumbers": "AA135",
+          "Cabin": "premium",
+          "RemainingSeats": 0,
+          "MileageCost": 88000,
+          "TotalTaxes": 43539,
+          "Carriers": "AA",
+          "Stops": 0,
+          "OriginAirport": "LHR",
+          "DestinationAirport": "LAX",
+          "DepartsAt": "2027-07-17T16:25:00Z",
+          "ArrivesAt": "2027-07-17T19:35:00Z",
+          "Source": "american"
+        }
+      ]
+    }
+  ],
+  "count": 2,
+  "hasMore": false
+}
