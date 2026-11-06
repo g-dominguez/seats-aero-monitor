@@ -241,6 +241,9 @@ def query_route(query_cfg: dict, headers: dict) -> list:
 
             # Filter criteria: 2+ seats available and points <= 60,000
             if w_avail and w_seats >= MIN_SEATS:
+                if w_miles == 0:
+                    logging.warning(f"Price unavailable for {query_cfg['name']} on {item.get('Source', 'N/A')}")
+                    continue
                 if MAX_POINTS_CEILING and w_miles > MAX_POINTS_CEILING:
                     continue
 
