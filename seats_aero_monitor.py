@@ -11,8 +11,7 @@ Monitors Seats.aero Cached Search API for 2 Premium Economy award seats:
 
 Notifications supported:
   1. Email via Gmail App Password (SMTP) with direct clickable booking links & departure times
-  2. Mobile push via Discord Webhook / Telegram
-  3. GitHub Actions Job Summary table (renders directly in GitHub Actions UI)
+  2. GitHub Actions Job Summary table (renders directly in GitHub Actions UI)
 """
 
 import os
@@ -42,10 +41,6 @@ SMTP_USER = os.getenv("SMTP_USER", "").strip()
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").replace(" ", "").strip()
 NOTIFICATION_EMAIL = os.getenv("NOTIFICATION_EMAIL", SMTP_USER).strip()
 
-# Mobile push webhooks (Optional)
-DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "").strip()
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
 
 # Flight Criteria
 API_URL = "https://seats.aero/partnerapi/search"
@@ -176,40 +171,6 @@ def send_email_alert(flights: list) -> None:
         logging.info(f"Alert email sent successfully to {NOTIFICATION_EMAIL}!")
     except Exception as e:
         logging.error(f"Failed to send email alert: {e}")
-
-
-def send_discord_alert(flights: list) -> None:
-    """Send an alert to a Discord channel via Webhook."""
-    if not DISCORD_WEBHOOK_URL:
-        return
-
-    description = f"Found **{len(flights)}** option(s) for 2 seats in Premium Economy (≤ 60k pts):\n\n"
-    for f in flights[:5]:
-        program_key = f['program'].lower()
-        portal_url = BOOKING_PORTALS.get(program_key, "https://seats.aero")
-        portal_label = "British Airways" if program_key in ["american", "alaska"] else f['program'].title()
-        dep_str = f" ({f.get('departure_time', 'PM flight')})" if f.get("departure_time") else ""
-        description += (
-            f"• **{f['route']}**{dep_str} | **{f['points']:,} pts** (+${f['taxes']:.2f})\n"
-            f"  {f['seats']} seats on {f['program'].title()} ({f['airlines']}) | [Book on {portal_label}]({portal_url})\n\n"
-        )
-
-    payload = {
-        "embeds": [
-            {
-                "title": f"🚨 Premium Economy Alert: July 17, 2027 to LAX",
-                "description": description,
-                "color": 3447003,
-                "timestamp": datetime.utcnow().isoformat(),
-            }
-        ]
-    }
-    try:
-        res = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
-        if res.status_code == 204:
-            logging.info("Discord webhook alert sent successfully.")
-    except Exception as e:
-        logging.error(f"Failed to send Discord alert: {e}")
 
 
 def write_github_summary(matches: list) -> None:
@@ -357,7 +318,6 @@ def main():
     # Dispatch alerts if matches found
     if all_matches:
         send_email_alert(all_matches)
-        send_discord_alert(all_matches)
 
 
 if __name__ == "__main__":
