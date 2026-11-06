@@ -314,7 +314,7 @@ def query_route(query_cfg: dict, headers: dict) -> list:
 
                 flight_entry = {
                     "origin": query_cfg["origin"],
-                    "route": f"{item.get('Route', {}).get('OriginAirport', query_cfg['origin'])} → {DESTINATION}",
+                    "route": f"{item.get('Route', {}).get('OriginAirport', query_cfg['origin'])} → {query_cfg['destination']}",
                     "date": item.get("Date", TARGET_DATE),
                     "departure_time": flight_dep_time,
                     "is_afternoon": earliest_hour is not None,
