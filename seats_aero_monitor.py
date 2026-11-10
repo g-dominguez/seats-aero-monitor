@@ -7,7 +7,7 @@ Monitors Seats.aero Cached Search API for 2 Premium Economy award seats:
   - Date: July 17, 2027
   - Cabin: Premium Economy (W)
   - Seats: At least 2 seats
-  - Max Points Budget: 60,000 miles per seat
+  - Max Points Budget: 75,000 miles per seat
 Each flight is checked on its own, and an alert only uses that flight's values.
 
 Notifications supported:
@@ -50,7 +50,7 @@ API_URL = "https://seats.aero/partnerapi/search"
 TARGET_DATE = "2027-07-17"
 CABIN = "premium"
 MIN_SEATS = 2
-MAX_POINTS_CEILING = 60000
+MAX_POINTS_CEILING = 75000
 
 # Multiple origin search:
 # - NCE to LAX: Any time of day (starts in Nice)
@@ -99,7 +99,7 @@ def send_email_alert(flights: list, subject_prefix: str = "") -> bool:
         logging.error("SMTP email credentials not set. Cannot send the alert email.")
         return False
 
-    subject = f"{subject_prefix}✈️ Award Alert: Found {len(flights)} Premium Economy Flight(s) to LAX (≤60k pts)"
+    subject = f"{subject_prefix}✈️ Award Alert: Found {len(flights)} Premium Economy Flight(s) to LAX (≤{MAX_POINTS_CEILING:,} pts)"
     
     html_rows = ""
     for f in flights:
@@ -131,7 +131,7 @@ def send_email_alert(flights: list, subject_prefix: str = "") -> bool:
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #333; line-height: 1.5; padding: 20px;">
         <h2 style="color: #1a73e8; margin-bottom: 8px;">🎉 Premium Economy Award Seats Found!</h2>
         <p style="font-size: 15px; margin-top: 0;">
-            Your flight monitor found <b>{len(flights)}</b> option(s) for <b>July 17, 2027</b> matching your criteria (at least 2 Premium Economy seats for ≤ 60,000 points):
+            Your flight monitor found <b>{len(flights)}</b> option(s) for <b>July 17, 2027</b> matching your criteria (at least 2 Premium Economy seats for ≤ {MAX_POINTS_CEILING:,} points):
         </p>
 
         <table style="border-collapse: collapse; width: 100%; margin-top: 15px; font-size: 14px;">
