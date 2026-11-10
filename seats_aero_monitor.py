@@ -87,13 +87,13 @@ BOOKING_PORTALS = {
 
 
 # ----------------- Notification Dispatchers -----------------
-def send_email_alert(flights: list) -> None:
+def send_email_alert(flights: list, subject_prefix: str = "") -> None:
     """Send an HTML email alert with departure times and clickable booking links."""
     if not SMTP_USER or not SMTP_PASSWORD or not NOTIFICATION_EMAIL:
         logging.info("SMTP email credentials not set. Skipping email dispatch.")
         return
 
-    subject = f"✈️ Award Alert: Found {len(flights)} Premium Economy Flight(s) to LAX (≤60k pts)"
+    subject = f"{subject_prefix}✈️ Award Alert: Found {len(flights)} Premium Economy Flight(s) to LAX (≤60k pts)"
     
     html_rows = ""
     for f in flights:
@@ -313,7 +313,30 @@ def query_route(query_cfg: dict, headers: dict) -> list:
         return []
 
 
+def send_test_email() -> None:
+    """Send a made-up alert through the real email path, to check the stored credentials work."""
+    sample_flight = {
+        "origin": "LHR",
+        "route": "TEST → LAX (not a real flight)",
+        "date": TARGET_DATE,
+        "departure_time": "04:20 PM",
+        "is_afternoon": True,
+        "seats": 2,
+        "points": 55000,
+        "taxes": 435.39,
+        "program": "virginatlantic",
+        "airlines": "VS",
+        "direct": True,
+    }
+    send_email_alert([sample_flight], subject_prefix="[TEST] ")
+
+
 def main():
+    if os.getenv("SEND_TEST_EMAIL") == "true":
+        logging.info("Test email requested. Skipping the search.")
+        send_test_email()
+        return
+
     if not SEATS_AERO_API_KEY:
         logging.error("Missing SEATS_AERO_API_KEY environment variable. Exiting.")
         sys.exit(1)
