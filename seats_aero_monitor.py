@@ -3,15 +3,18 @@ Seats.aero Multi-Route Award Flight Inventory Monitor & Alerter
 ---------------------------------------------------------------
 Monitors Seats.aero Cached Search API for 2 Premium Economy award seats:
   - Route 1: NCE -> LAX (1-stop via European hubs like CDG, AMS, MAD, LHR)
-  - Route 2: LHR -> LAX (Direct non-stop, restricted to Afternoon/Evening departures ≥ 12:00 PM)
+  - Route 2: LHR -> LAX (Direct non-stop, restricted to departures at 12:00 PM or later, local time)
   - Date: July 17, 2027
   - Cabin: Premium Economy (W)
   - Seats: At least 2 seats
   - Max Points Budget: 60,000 miles per seat
+Each flight is checked on its own, and an alert only uses that flight's values.
 
 Notifications supported:
   1. Email via Gmail App Password (SMTP) with direct clickable booking links & departure times
   2. GitHub Actions Job Summary table (renders directly in GitHub Actions UI)
+If there are matches and the email can't be sent, the script exits with an error so the run fails.
+Set SEND_TEST_EMAIL=true to send a sample alert without searching.
 """
 
 import os
