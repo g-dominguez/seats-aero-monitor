@@ -87,6 +87,9 @@ BOOKING_PORTALS = {
 
 
 # ----------------- Notification Dispatchers -----------------
+UNKNOWN_DEPARTURE_LABEL = "Time unknown, check before booking"
+
+
 def send_email_alert(flights: list, subject_prefix: str = "") -> bool:
     """Send an HTML email alert with departure times and clickable booking links. Returns True if it was sent."""
     if not SMTP_USER or not SMTP_PASSWORD or not NOTIFICATION_EMAIL:
@@ -102,7 +105,7 @@ def send_email_alert(flights: list, subject_prefix: str = "") -> bool:
         portal_label = "British Airways (Avios)" if program_key in ["american", "alaska"] else f['program'].title()
         seats_aero_url = f"https://seats.aero/search?origin={f['origin']}&destination=LAX&date={TARGET_DATE}"
 
-        dep_time_str = f.get("departure_time", "Afternoon/Evening" if f.get("is_afternoon") else "All Day")
+        dep_time_str = f.get("departure_time") or UNKNOWN_DEPARTURE_LABEL
 
         html_rows += f"""
         <tr style="border-bottom: 1px solid #e0e0e0;">
@@ -195,7 +198,7 @@ def write_github_summary(matches: list) -> None:
             program_key = m['program'].lower()
             portal_url = BOOKING_PORTALS.get(program_key, "https://seats.aero")
             portal_label = "British Airways" if program_key in ["american", "alaska"] else m['program'].title()
-            dep_str = m.get("departure_time", "Afternoon/Evening" if m.get("is_afternoon") else "All Day")
+            dep_str = m.get("departure_time") or UNKNOWN_DEPARTURE_LABEL
             f.write(
                 f"| {m['route']} | {dep_str} | **{m['points']:,}** | ${m['taxes']:.2f} | {m['seats']} | "
                 f"{m['program'].title()} | {m['airlines']} | {'Direct' if m['direct'] else '1-Stop'} | "
@@ -298,7 +301,6 @@ def query_route(query_cfg: dict, headers: dict) -> list:
                     "route": f"{item.get('Route', {}).get('OriginAirport', query_cfg['origin'])} → {query_cfg['destination']}",
                     "date": item.get("Date", TARGET_DATE),
                     "departure_time": dep_dt.strftime("%I:%M %p") if dep_dt else None,
-                    "is_afternoon": earliest_hour is not None,
                     "seats": int(trip["RemainingSeats"]),
                     "points": int(trip["MileageCost"]),
                     "taxes": float(trip.get("TotalTaxes", 0) or 0) / 100.0,
@@ -322,7 +324,6 @@ def send_test_email() -> bool:
         "route": "TEST → LAX (not a real flight)",
         "date": TARGET_DATE,
         "departure_time": "04:20 PM",
-        "is_afternoon": True,
         "seats": 2,
         "points": 55000,
         "taxes": 435.39,

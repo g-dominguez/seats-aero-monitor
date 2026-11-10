@@ -26,13 +26,16 @@ def test_query_route_returns_only_the_qualifying_flight(monkeypatch):
     assert matches[0]["departure_time"] == "04:20 PM"
 
 
-def set_up_match_and_fake_email(monkeypatch):
+def set_up_match_and_fake_email(monkeypatch, lhr_data=None):
     """Fake a search with one match and a working mail server. Returns the fake mail server."""
+    if lhr_data is None:
+        lhr_data = json.loads(FIXTURE.read_text())
+
     # main() searches both routes, so only LHR gets the fixture and NCE gets no results
     def fake_get(url, headers, params, timeout):
         response = MagicMock(status_code=200)
         if params["origin_airport"] == "LHR":
-            response.json.return_value = json.loads(FIXTURE.read_text())
+            response.json.return_value = lhr_data
         else:
             response.json.return_value = {"data": []}
         return response
@@ -102,3 +105,21 @@ def test_no_match_does_not_need_email(monkeypatch):
     monitor.main()
 
     fake_smtp.assert_not_called()
+
+
+def test_unknown_departure_time_is_labelled(monkeypatch, tmp_path):
+    # Remove VS23's departure time; it should still alert, with an honest label
+    lhr_data = json.loads(FIXTURE.read_text())
+    del lhr_data["data"][0]["AvailabilityTrips"][1]["DepartsAt"]
+    fake_smtp = set_up_match_and_fake_email(monkeypatch, lhr_data)
+    summary_file = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary_file))
+
+    monitor.main()
+
+    raw_message = fake_smtp.return_value.sendmail.call_args.args[2]
+    body = email.message_from_string(raw_message).get_payload(0).get_payload(decode=True).decode()
+    summary = summary_file.read_text()
+    for text in (body, summary):
+        assert monitor.UNKNOWN_DEPARTURE_LABEL in text
+        assert "None" not in text
