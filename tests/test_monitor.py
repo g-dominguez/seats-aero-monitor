@@ -1,7 +1,10 @@
 import email
 import json
+import smtplib
 from pathlib import Path
 from unittest.mock import MagicMock
+
+import pytest
 
 import seats_aero_monitor as monitor
 
@@ -23,7 +26,8 @@ def test_query_route_returns_only_the_qualifying_flight(monkeypatch):
     assert matches[0]["departure_time"] == "04:20 PM"
 
 
-def test_match_sends_email_alert(monkeypatch):
+def set_up_match_and_fake_email(monkeypatch):
+    """Fake a search with one match and a working mail server. Returns the fake mail server."""
     # main() searches both routes, so only LHR gets the fixture and NCE gets no results
     def fake_get(url, headers, params, timeout):
         response = MagicMock(status_code=200)
@@ -45,6 +49,12 @@ def test_match_sends_email_alert(monkeypatch):
     monkeypatch.setattr(monitor, "SMTP_PASSWORD", "fake-password")
     monkeypatch.setattr(monitor, "NOTIFICATION_EMAIL", "me@example.com")
     monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+    monkeypatch.delenv("SEND_TEST_EMAIL", raising=False)
+    return fake_smtp
+
+
+def test_match_sends_email_alert(monkeypatch):
+    fake_smtp = set_up_match_and_fake_email(monkeypatch)
 
     monitor.main()
 
@@ -60,3 +70,35 @@ def test_match_sends_email_alert(monkeypatch):
     assert "04:20 PM" in body
     assert "55,000" not in body
     assert "None" not in body
+
+
+def test_failed_email_fails_the_run(monkeypatch):
+    fake_smtp = set_up_match_and_fake_email(monkeypatch)
+    fake_smtp.return_value.login.side_effect = smtplib.SMTPAuthenticationError(535, b"Bad credentials")
+
+    with pytest.raises(SystemExit) as exit_info:
+        monitor.main()
+
+    assert exit_info.value.code == 1
+
+
+def test_missing_email_settings_fail_the_run(monkeypatch):
+    set_up_match_and_fake_email(monkeypatch)
+    monkeypatch.setattr(monitor, "SMTP_PASSWORD", "")
+
+    with pytest.raises(SystemExit) as exit_info:
+        monitor.main()
+
+    assert exit_info.value.code == 1
+
+
+def test_no_match_does_not_need_email(monkeypatch):
+    fake_smtp = set_up_match_and_fake_email(monkeypatch)
+    monkeypatch.setattr(monitor, "SMTP_PASSWORD", "")
+    empty_response = MagicMock(status_code=200)
+    empty_response.json.return_value = {"data": []}
+    monkeypatch.setattr(monitor.requests, "get", MagicMock(return_value=empty_response))
+
+    monitor.main()
+
+    fake_smtp.assert_not_called()

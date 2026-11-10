@@ -87,11 +87,11 @@ BOOKING_PORTALS = {
 
 
 # ----------------- Notification Dispatchers -----------------
-def send_email_alert(flights: list, subject_prefix: str = "") -> None:
-    """Send an HTML email alert with departure times and clickable booking links."""
+def send_email_alert(flights: list, subject_prefix: str = "") -> bool:
+    """Send an HTML email alert with departure times and clickable booking links. Returns True if it was sent."""
     if not SMTP_USER or not SMTP_PASSWORD or not NOTIFICATION_EMAIL:
-        logging.info("SMTP email credentials not set. Skipping email dispatch.")
-        return
+        logging.error("SMTP email credentials not set. Cannot send the alert email.")
+        return False
 
     subject = f"{subject_prefix}✈️ Award Alert: Found {len(flights)} Premium Economy Flight(s) to LAX (≤60k pts)"
     
@@ -169,8 +169,10 @@ def send_email_alert(flights: list, subject_prefix: str = "") -> None:
         server.sendmail(SMTP_USER, NOTIFICATION_EMAIL, msg.as_string())
         server.quit()
         logging.info(f"Alert email sent successfully to {NOTIFICATION_EMAIL}!")
+        return True
     except Exception as e:
         logging.error(f"Failed to send email alert: {e}")
+        return False
 
 
 def write_github_summary(matches: list) -> None:
@@ -313,7 +315,7 @@ def query_route(query_cfg: dict, headers: dict) -> list:
         return []
 
 
-def send_test_email() -> None:
+def send_test_email() -> bool:
     """Send a made-up alert through the real email path, to check the stored credentials work."""
     sample_flight = {
         "origin": "LHR",
@@ -328,13 +330,14 @@ def send_test_email() -> None:
         "airlines": "VS",
         "direct": True,
     }
-    send_email_alert([sample_flight], subject_prefix="[TEST] ")
+    return send_email_alert([sample_flight], subject_prefix="[TEST] ")
 
 
 def main():
     if os.getenv("SEND_TEST_EMAIL") == "true":
         logging.info("Test email requested. Skipping the search.")
-        send_test_email()
+        if not send_test_email():
+            sys.exit(1)
         return
 
     if not SEATS_AERO_API_KEY:
@@ -356,9 +359,10 @@ def main():
     # Record summary in GitHub Actions UI
     write_github_summary(all_matches)
 
-    # Dispatch alerts if matches found
-    if all_matches:
-        send_email_alert(all_matches)
+    # Dispatch alerts if matches found, and fail the run if the alert didn't go out
+    if all_matches and not send_email_alert(all_matches):
+        logging.error("Matches were found but the alert email was not sent.")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
