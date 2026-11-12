@@ -1,0 +1,76 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Starts the seats-aero-monitor GitHub workflow every 20 minutes.
+
+Parameters:
+  AlertEmail:
+    Type: String
+    Description: Where to send an email if the scheduler keeps failing to start the workflow.
+
+Resources:
+  DispatchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: dispatch.handler
+      Runtime: python3.14
+      Architectures: [arm64]
+      MemorySize: 128
+      Timeout: 15
+      Environment:
+        Variables:
+          TOKEN_PARAMETER: /seats-aero-monitor/github-token
+          GITHUB_REPO: g-dominguez/seats-aero-monitor
+          WORKFLOW_FILE: monitor.yml
+          GIT_REF: main
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/seats-aero-monitor/github-token
+      # The next scheduled run is 20 minutes away, so don't retry a failed one.
+      EventInvokeConfig:
+        MaximumRetryAttempts: 0
+      Events:
+        Every20Minutes:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: rate(20 minutes)
+            State: ENABLED
+
+  DispatchLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${DispatchFunction}
+      RetentionInDays: 30
+
+  FailureTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref AlertEmail
+
+  # Two failures in an hour (out of three runs) means something is really wrong,
+  # e.g. an expired token, rather than a one-off GitHub hiccup.
+  DispatchFailingAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: The scheduler failed to start the seats-aero-monitor workflow. Check the Lambda logs.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref DispatchFunction
+      Statistic: Sum
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: 2
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref FailureTopic
+
+Outputs:
+  FunctionName:
+    Value: !Ref DispatchFunction

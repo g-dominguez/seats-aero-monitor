@@ -2,3 +2,5 @@ CLAUDE.md
 PLAN.md
 .venv/
 __pycache__/
+scheduler/samconfig.toml
+scheduler/.aws-sam/
